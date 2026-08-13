@@ -42,8 +42,8 @@ console.log("Parsed artist name:", parsedArtist.name);
 // STRETCH, step 9: describe your page as a system. Name the client, name the
 // server, and state what the request asked for and what the response carried.
 
-// Client: the browser showing index.html to the user.
-// Server: the web server (Live Server or GitHub) hosting the stretch-records files.
+// The client: the browser showing index.html to the user.
+// The server: the web server (Live Server or GitHub) hosting the stretch-records files.
 // The client requests index.html, styles.css, script.js, and label.json.
 // script.js uses fetch to ask the server for label.json.
 // The response carries JSON data for all artists.
