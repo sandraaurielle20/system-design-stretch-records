@@ -26,21 +26,41 @@ function renderCards(list) {
   }
 }
 
-// 1. Create and display the loading message immediately
-const loadingMessage = document.createElement("p");
-loadingMessage.className = "loading";
-loadingMessage.textContent = "Loading artists...";
-cardArea.append(loadingMessage);
+// Helper to preserve the 2-second simulated delay
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// 2. Fetch the data, but delay rendering by 2000ms (2 seconds)
-fetch("artists.json")
-  .then((response) => response.json())
-  .then((artists) => {
-    setTimeout(() => {
-      loadingMessage.remove(); // Clear loading message
-      renderCards(artists); // Render the cards
-    }, 2000);
-  });
+async function loadArtists() {
+  // 1. Create and show loading message
+  const loadingMessage = document.createElement("p");
+  loadingMessage.className = "loading";
+  loadingMessage.textContent = "Loading artists...";
+  cardArea.append(loadingMessage);
+
+  try {
+    // 2. Wait 2 seconds (simulated network delay from Lesson 2)
+    await sleep(2000);
+
+    const response = await fetch("artists.json");
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const artists = await response.json();
+    renderCards(artists);
+  } catch (error) {
+    // 3. Render error message on failure
+    const errorMessage = document.createElement("p");
+    errorMessage.className = "error";
+    errorMessage.textContent =
+      "Unable to load artists at this time. Please try again later.";
+    cardArea.append(errorMessage);
+    console.error("Failed to load artists:", error);
+  } finally {
+    // 4. Always remove loading indicator
+    loadingMessage.remove();
+  }
+}
+
+loadArtists();
 
 // Shuffle button handler
 const shuffleButton = document.querySelector(".shuffle");
