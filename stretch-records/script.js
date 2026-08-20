@@ -1,98 +1,123 @@
-'use strict';
+"use strict";
 
-// The roster, exactly where the JavaScript course's finale left it: an array
-// of artist objects at the top of the file, and one repeatable rule that
-// renders it. In this course the data moves out of this file, step by step.
-const artists = [
-  {
-    name: 'Pinkfong',
-    genre: "Children's music",
-    total: '11:31',
-    photo: 'images/pinkfong.jpeg',
-  },
-  {
-    name: 'Adriano Celentano',
-    genre: 'Italian pop',
-    total: '20:52',
-    photo: 'images/adriano-celentano.jpg',
-  },
-  {
-    name: 'Asake',
-    genre: 'Afrobeats',
-    total: '14:08',
-    photo: 'images/asake.jpg',
-  },
-  {
-    name: 'Miyagi and Andy Panda',
-    genre: 'Hip-hop',
-    total: '16:21',
-    photo: 'images/miyagi-and-andy-panda.jpg',
-  },
-  {
-    name: 'Johnny Cash',
-    genre: 'Country',
-    total: '15:40',
-    photo: 'images/johnny-cash.jpg',
-  },
-];
-
-const cardArea = document.querySelector('.cards');
-
-// Every artist currently on the page, whatever the data's source. renderCards
-// maintains this list, so the shuffle button and the form keep working no
-// matter where the artists came from.
+const cardArea = document.querySelector(".cards");
 const roster = [];
 
-// One card from one artist: the shared builder, used by the first render
-// and by the form below.
 function buildCard(artist) {
-  const card = document.createElement('article');
+  const card = document.createElement("article");
   if (artist.photo) {
-    const photo = document.createElement('img');
+    const photo = document.createElement("img");
     photo.src = artist.photo;
     photo.alt = `${artist.name}, artist photo`;
     card.append(photo);
   }
-  const title = document.createElement('h3');
+  const title = document.createElement("h3");
   title.textContent = artist.name;
-  const line = document.createElement('p');
+  const line = document.createElement("p");
   line.textContent = `${artist.genre}, ${artist.total} of music`;
   card.append(title, line);
   return card;
 }
 
 function renderCards(list) {
-  for (const artist of list) {
+  // Handle both direct arrays and wrapped { artists: [...] } objects safely
+  const items = Array.isArray(list) ? list : list.artists || [];
+
+  for (const artist of items) {
     roster.push(artist);
     cardArea.append(buildCard(artist));
   }
 }
 
-renderCards(artists);
+// Helper to preserve simulated delay
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Shuffle: pick a random artist and feature them.
-const shuffleButton = document.querySelector('.shuffle');
+async function loadArtists() {
+  const loadingMessage = document.createElement("p");
+  loadingMessage.className = "loading";
+  loadingMessage.textContent = "Loading artists...";
+  cardArea.append(loadingMessage);
 
-shuffleButton.addEventListener('click', () => {
+  try {
+    await sleep(1500);
+
+    // Fetch from your json-server endpoint
+    const response = await fetch("http://localhost:3000/artists");
+
+    // Step 3 requirements: Log response properties
+    console.log("Response Object:", response);
+    console.log("Response ok:", response.ok);
+    console.log("Response status:", response.status);
+
+    // Step 4 requirement: Throw on HTTP error
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    renderCards(data);
+  } catch (error) {
+    // Show visitor-friendly fallback error message
+    const errorMessage = document.createElement("p");
+    errorMessage.className = "error";
+    errorMessage.textContent =
+      "Unable to load artists at this time. Please try again later.";
+    cardArea.append(errorMessage);
+    console.error("Failed to load artists:", error);
+  } finally {
+    // Step 5: Always clear the loading indicator
+    loadingMessage.remove();
+  }
+}
+
+loadArtists();
+
+// Shuffle button handler
+const shuffleButton = document.querySelector(".shuffle");
+shuffleButton.addEventListener("click", () => {
   if (roster.length === 0) return;
   const pick = roster[Math.floor(Math.random() * roster.length)];
-  document.querySelector('.featured').textContent =
+  document.querySelector(".featured").textContent =
     `Featured today: ${pick.name}`;
 });
 
-// The suggestion form: an empty submission does nothing, because an empty
-// string is falsy.
-const form = document.querySelector('.signup');
-const nameInput = document.querySelector('#artist-name');
-const genreInput = document.querySelector('#artist-genre');
+// Form submission handler
+const form = document.querySelector(".signup");
+const nameInput = document.querySelector("#artist-name");
+const genreInput = document.querySelector("#artist-genre");
 
-form.addEventListener('submit', (event) => {
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const name = nameInput.value;
-  if (name) {
-    const genre = genreInput.value || 'Unsigned';
-    renderCards([{ name: name, genre: genre, total: '0:00' }]);
-    nameInput.value = '';
-    genreInput.value = '';
+  const name = nameInput.value.trim();
+  const genre = genreInput.value.trim() || "Unsigned";
+
+  if (!name) return;
+
+  const newArtist = {
+    name: name,
+    genre: genre,
+    total: "0:00",
+  };
+
+  try {
+    const response = await fetch("http://localhost:3000/artists", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(newArtist),
+    });
+
+    console.log("POST Response status:", response.status); // 201 Created
+
+    if (response.ok) {
+      const savedArtist = await response.json();
+      roster.push(savedArtist);
+      cardArea.append(buildCard(savedArtist));
+      nameInput.value = "";
+      genreInput.value = "";
+    }
+  } catch (error) {
+    console.error("Failed to submit artist:", error);
   }
 });
