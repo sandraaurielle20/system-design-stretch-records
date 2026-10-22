@@ -20,34 +20,44 @@ function buildCard(artist) {
 }
 
 function renderCards(list) {
-  for (const artist of list) {
+  // Handle both direct arrays and wrapped { artists: [...] } objects safely
+  const items = Array.isArray(list) ? list : list.artists || [];
+
+  for (const artist of items) {
     roster.push(artist);
     cardArea.append(buildCard(artist));
   }
 }
 
-// Helper to preserve the 2-second simulated delay
+// Helper to preserve simulated delay
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function loadArtists() {
-  // 1. Create and show loading message
   const loadingMessage = document.createElement("p");
   loadingMessage.className = "loading";
   loadingMessage.textContent = "Loading artists...";
   cardArea.append(loadingMessage);
 
   try {
-    // 2. Wait 2 seconds (simulated network delay from Lesson 2)
-    await sleep(2000);
+    await sleep(1500);
 
-    const response = await fetch("artists.json");
+    // Fetch from your json-server endpoint
+    const response = await fetch("http://localhost:3000/artists");
+
+    // Step 3 requirements: Log response properties
+    console.log("Response Object:", response);
+    console.log("Response ok:", response.ok);
+    console.log("Response status:", response.status);
+
+    // Step 4 requirement: Throw on HTTP error
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    const artists = await response.json();
-    renderCards(artists);
+
+    const data = await response.json();
+    renderCards(data);
   } catch (error) {
-    // 3. Render error message on failure
+    // Show visitor-friendly fallback error message
     const errorMessage = document.createElement("p");
     errorMessage.className = "error";
     errorMessage.textContent =
@@ -55,7 +65,7 @@ async function loadArtists() {
     cardArea.append(errorMessage);
     console.error("Failed to load artists:", error);
   } finally {
-    // 4. Always remove loading indicator
+    // Step 5: Always clear the loading indicator
     loadingMessage.remove();
   }
 }
@@ -76,13 +86,38 @@ const form = document.querySelector(".signup");
 const nameInput = document.querySelector("#artist-name");
 const genreInput = document.querySelector("#artist-genre");
 
-form.addEventListener("submit", (event) => {
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const name = nameInput.value;
-  if (name) {
-    const genre = genreInput.value || "Unsigned";
-    renderCards([{ name: name, genre: genre, total: "0:00" }]);
-    nameInput.value = "";
-    genreInput.value = "";
+  const name = nameInput.value.trim();
+  const genre = genreInput.value.trim() || "Unsigned";
+
+  if (!name) return;
+
+  const newArtist = {
+    name: name,
+    genre: genre,
+    total: "0:00",
+  };
+
+  try {
+    const response = await fetch("http://localhost:3000/artists", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(newArtist),
+    });
+
+    console.log("POST Response status:", response.status); // 201 Created
+
+    if (response.ok) {
+      const savedArtist = await response.json();
+      roster.push(savedArtist);
+      cardArea.append(buildCard(savedArtist));
+      nameInput.value = "";
+      genreInput.value = "";
+    }
+  } catch (error) {
+    console.error("Failed to submit artist:", error);
   }
 });
